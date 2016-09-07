@@ -1,0 +1,25 @@
+[package]
+name = "kitchen-native"
+version = "0.1.0"
+authors = ["Daniel Yule <daniel.yule@gmail.com>"]
+
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
+[[bin]]
+name = "client"
+"path" = "src/client.rs"
+
+[dependencies]
+optra = {version = "0.1", path = "../optra"}
+rdiff = {version = "0.1", path="../rdiff"}
+crdt_fileset = {version = "0.1", path="../crdt_fileset"}
+notify= {version = "^2.6",  path="../rsnotify"}
+eventual = "^0.1"
+wamp = {version="0.1", path="../wamp-rs"}
+base64 = "^0.2"
+log = "0.3"
+env_logger = "0.3"
+getopts = "0.2"
+byteorder = "0.5"
