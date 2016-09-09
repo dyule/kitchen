@@ -324,6 +324,44 @@ fn create_changes_callback(data: Arc<Mutex<SyncData>>, fileset: Arc<Mutex<FileSe
     })
 }
 
+fn create_history_callback(data: Arc<Mutex<SyncData>>, fileset: Arc<Mutex<FileSet<FileUpdater>>>) -> Box<FnMut(List, Dict) -> CallResult<(Option<List>, Option<Dict>)>> {
+    Box::new(move |args, kwargs| {
+        trace!("Getting file history");
+        let site_id = try!(kwargs.get_int("site_id")).unwrap() as u32;
+        let id = try!(kwargs.get_int("id")).unwrap() as u32;
+
+        trace!("Attempting to lock fileset");
+        let mut fileset = fileset.lock().unwrap();
+        trace!("Fileset locked");
+        // TODO better error handling
+        let history = fileset.get_file_history_for((site_id, id)).unwrap();
+        trace!("history found, compressing for transmission");
+        let lookup = data.lock().unwrap().stamper.get_timestamps_for(&history);
+
+        let mut history_bytes = Cursor::new(Vec::new());
+        // TODO better error handling
+        let mut int_buf = [0;4];
+        NetworkEndian::write_u32(&mut int_buf, lookup.len() as u32);
+        history_bytes.write(&mut int_buf).unwrap();
+        for (&local, &(site_id, remote)) in lookup.iter() {
+            NetworkEndian::write_u32(&mut int_buf, local);
+            history_bytes.write(&mut int_buf).unwrap();
+            NetworkEndian::write_u32(&mut int_buf, site_id);
+            history_bytes.write(&mut int_buf).unwrap();
+            NetworkEndian::write_u32(&mut int_buf, remote);
+            history_bytes.write(&mut int_buf).unwrap();
+        }
+        history.compress_to(&mut history_bytes).unwrap();
+        let history_str = base64::encode(history_bytes.into_inner().as_slice());
+        let mut ret_args = HashMap::new();
+        ret_args.insert("history".to_string(), Value::String(history_str));
+        trace!("Transmitting history back");
+        Ok((None, Some(ret_args)))
+
+    })
+}
+
+
 fn lookup_to_list(lookup: &BTreeMap<u32, (u32, u32)>) -> List {
     lookup.iter().map(|(&local, &(site_id, remote))| Value::List(vec![Value::Integer(local as i64), Value::Integer(site_id as i64), Value::Integer(remote as i64)])).collect()
 }
@@ -422,8 +460,9 @@ impl Client {
                 data.store.save_stamper(&data.stamper).unwrap();
             }
         }
-        try!(client.register(URI::new("ca.kitchen.get_changes"), create_changes_callback(data, fileset.clone())));
+        try!(client.register(URI::new("ca.kitchen.get_changes"), create_changes_callback(data.clone(), fileset.clone())));
         try!(client.register(URI::new("ca.kitchen.get_all_files"), create_file_list_callback(fileset.clone())));
+        try!(client.register(URI::new("ca.kitchen.get_file_history"), create_history_callback(data, fileset.clone())));
         try!(client.subscribe(URI::new("ca.kitchen.file_updates"), create_update_callback(fileset)));
 
         Ok(Client {

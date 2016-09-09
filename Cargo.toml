@@ -12,9 +12,9 @@ name = "client"
 "path" = "src/client.rs"
 
 [dependencies]
-optra = "0.1"
+optra = "0.2"
 rdiff = "0.1"
-crdt_fileset = "0.1"
+crdt_fileset = {version = "0.1", path = "../crdt_fileset"}
 notify = {version = "2.6", git = "https://github.com/passcod/rsnotify"}
 eventual = "^0.1"
 wamp = "0.1"
