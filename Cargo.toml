@@ -14,7 +14,7 @@ name = "client"
 [dependencies]
 optra = "0.2"
 rdiff = "0.1"
-crdt_fileset = {version = "0.1", path = "../crdt_fileset"}
+crdt_fileset = "0.1"
 notify = {version = "2.6", git = "https://github.com/passcod/rsnotify"}
 eventual = "^0.1"
 wamp = "0.1"
