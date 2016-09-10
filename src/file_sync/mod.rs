@@ -105,7 +105,7 @@ impl SyncData {
            }
         }
         trace!("Integrating transaction");
-        engine.integrate_remote(transaction,timestamp_lookup, &mut self.stamper);
+        engine.integrate_remote(transaction,timestamp_lookup, &mut self.stamper).unwrap();
         file.seek(SeekFrom::Start(0)).unwrap();
         trace!("Applying integrated transaction: {:?}", transaction);
         transaction.apply(&mut file);

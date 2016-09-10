@@ -378,7 +378,7 @@ fn extract_index(list: &List, index: usize) -> u32 {
 fn list_to_lookups(list: &List) -> BTreeMap<u32, (u32, u32)> {
     list.iter().map(|entry| {
         if let &Value::List(ref entry) = entry {
-            (extract_index(entry, 0), (extract_index(entry, 1), extract_index(entry, 1)))
+            (extract_index(entry, 0), (extract_index(entry, 1), extract_index(entry, 2)))
         } else {
             panic!("Lookup was not a list")
         }
