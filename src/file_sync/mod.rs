@@ -105,14 +105,14 @@ impl SyncData {
            }
         }
         trace!("Integrating transaction");
-        engine.integrate_remote(transaction,timestamp_lookup, &mut self.stamper).unwrap();
-        file.seek(SeekFrom::Start(0)).unwrap();
-        trace!("Applying integrated transaction: {:?}", transaction);
-        transaction.apply(&mut file);
-        file.seek(SeekFrom::Start(0)).unwrap();
-        hashes.diff_and_update(&mut file).unwrap();
-        self.store.store(&path, &engine, &hashes).unwrap()
-
+        if let Ok(_) = engine.integrate_remote(transaction,timestamp_lookup, &mut self.stamper){
+            file.seek(SeekFrom::Start(0)).unwrap();
+            trace!("Applying integrated transaction: {:?}", transaction);
+            transaction.apply(&mut file);
+            file.seek(SeekFrom::Start(0)).unwrap();
+            hashes.diff_and_update(&mut file).unwrap();
+            self.store.store(&path, &engine, &hashes).unwrap()
+        }
     }
 
     pub fn process_delayed(&mut self) {

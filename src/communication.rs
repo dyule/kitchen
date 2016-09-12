@@ -1,4 +1,4 @@
-use optra::{Engine, TransactionSequence, TimeStamper, InsertOperation, DeleteOperation};
+use optra::{TransactionSequence, DeleteOperation, InsertOperation};
 use rdiff::{BlockHashes, Diff};
 use crdt_fileset::{FileSet, FileHistory, FileSetOperation, CreateOperation, RemoveOperation, UpdateOperation, UpdateMetadata, MetadataTransaction, State};
 use std::collections::{LinkedList, HashMap, BTreeMap};
@@ -278,6 +278,30 @@ fn expand_file_history_entry<R: Read>(reader: &mut R, timestamp_lookup: &BTreeMa
     Ok((file_site_id, id, FileHistory::new(filename_timestamp, filename, attributes, operations)))
 }
 
+fn create_get_id_callback() -> Box<FnMut(List, Dict) -> CallResult<(Option<List>, Option<Dict>)>> {
+    let last_id = Arc::new(Mutex::new(1));
+    Box::new(move |args, kwargs| {
+        let mut last_id = last_id.lock().unwrap();
+        *last_id += 1;
+        Ok((Some(vec![Value::Integer(*last_id)]), None))
+    })
+}
+
+fn create_check_timestamp_callback(data: Arc<Mutex<SyncData>>) -> Box<FnMut(List, Dict) -> CallResult<(Option<List>, Option<Dict>)>> {
+    Box::new(move |args, kwargs| {
+        let site_id = try!(kwargs.get_int("site_id")).unwrap() as u32;
+        let timestamp = try!(kwargs.get_int("timestamp")).unwrap() as u32;
+        let data = data.lock().unwrap();
+        if data.stamper.get_local_timestamp_for(site_id, timestamp).is_some() {
+            Ok((Some(vec![Value::Integer(1)]), None))
+        } else {
+            Ok((Some(vec![Value::Integer(0)]), None))
+        }
+    })
+        
+}
+
+
 fn create_changes_callback(data: Arc<Mutex<SyncData>>, fileset: Arc<Mutex<FileSet<FileUpdater>>>) -> Box<FnMut(List, Dict) -> CallResult<(Option<List>, Option<Dict>)>> {
     Box::new(move |args, kwargs| {
         trace!("Calculating changes");
@@ -460,6 +484,8 @@ impl Client {
                 data.store.save_stamper(&data.stamper).unwrap();
             }
         }
+        try!(client.register(URI::new("ca.kitchen.get_id"), create_get_id_callback()));
+        try!(client.register(URI::new("ca.kitchen.check_timestamp"), create_check_timestamp_callback(data.clone())));
         try!(client.register(URI::new("ca.kitchen.get_changes"), create_changes_callback(data.clone(), fileset.clone())));
         try!(client.register(URI::new("ca.kitchen.get_all_files"), create_file_list_callback(fileset.clone())));
         try!(client.register(URI::new("ca.kitchen.get_file_history"), create_history_callback(data, fileset.clone())));
